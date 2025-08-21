@@ -1,25 +1,48 @@
+using System.Security.Cryptography.X509Certificates;
+using KitePlatformManager.Configuration;
+using KitePlatformManager.Services;
+using Microsoft.Extensions.Options;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddRazorPages();
+builder.Services.Configure<KitePlatformOptions>(builder.Configuration.GetSection("KitePlatform"));
+
+builder.Services.AddHttpClient("Kite", (sp, c) =>
+{
+    var options = sp.GetRequiredService<IOptions<KitePlatformOptions>>().Value;
+    c.BaseAddress = new Uri($"{options.BaseUrl}:{options.Port}/");
+    c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+})
+.ConfigurePrimaryHttpMessageHandler(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<KitePlatformOptions>>().Value;
+    var cert = new X509Certificate2(options.CertificatePath, options.CertificatePassword,
+        X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.EphemeralKeySet);
+    return new HttpClientHandler
+    {
+        ClientCertificates = { cert },
+        SslProtocols = System.Security.Authentication.SslProtocols.Tls12
+    };
+});
+
+builder.Services.AddScoped<KiteClient>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+app.MapGet("/demo/run", async (KiteClient kite) =>
 {
-    app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
-}
+    await foreach (var s in kite.GetSubscriptionsAsync(lifeCycle: "ACTIVE"))
+        Console.WriteLine($"{s.GetProperty(\"icc\").GetString()} - {s.GetProperty(\"lifeCycleStatus\").GetString()}");
 
-app.UseHttpsRedirection();
-app.UseStaticFiles();
+    await kite.ModifyLifecycleAsync(icc: "8934072100251262559", targetStatus: "ACTIVE");
 
-app.UseRouting();
+    var watcherId = await kite.SendSmsAsync("8934072100251262559", "hello from .NET");
+    Console.WriteLine($"SMS watcherId: {watcherId}");
 
-app.UseAuthorization();
+    var groups = await kite.ListCommercialGroupsAsync();
+    Console.WriteLine($"Groups count: {groups.Count}");
 
-app.MapRazorPages();
+    return Results.Ok("Done");
+});
 
 app.Run();
