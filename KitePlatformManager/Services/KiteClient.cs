@@ -62,4 +62,27 @@ public class KiteClient
         }
         return Array.Empty<JsonElement>();
     }
+
+    public async Task<JsonElement?> GetSimDetailAsync(string icc, CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.GetAsync($"subscriptions/{icc}", cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var doc = await response.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cancellationToken);
+        return doc?.RootElement;
+    }
+
+    public async IAsyncEnumerable<JsonElement> ListSimsAsync(int pageIndex, int pageSize, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var url = $"subscriptions?pageIndex={pageIndex}&pageSize={pageSize}";
+        using var response = await _httpClient.GetAsync(url, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var doc = await response.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cancellationToken);
+        if (doc != null && doc.RootElement.TryGetProperty("subscriptions", out var subs))
+        {
+            foreach (var sub in subs.EnumerateArray())
+            {
+                yield return sub;
+            }
+        }
+    }
 }
