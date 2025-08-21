@@ -1,10 +1,9 @@
+using KitePlatformManager.Configuration;
+using KitePlatformManager.Models;
+using KitePlatformManager.Services;
+using Microsoft.Extensions.Options;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
-using System.Linq;
-using KitePlatformManager.Configuration;
-using KitePlatformManager.Services;
-using KitePlatformManager.Models;
-using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,7 +34,7 @@ var app = builder.Build();
 app.MapGet("/demo/run", async (KiteClient kite) =>
 {
     await foreach (var s in kite.GetSubscriptionsAsync(lifeCycle: "ACTIVE"))
-        Console.WriteLine($"{s.GetProperty(\"icc\").GetString()} - {s.GetProperty(\"lifeCycleStatus\").GetString()}");
+        Console.WriteLine($"{s.GetProperty("\"icc\"").GetString()} - {s.GetProperty("\"lifeCycleStatus\"").GetString()}");
 
     await kite.ModifyLifecycleAsync(icc: "8934072100251262559", targetStatus: "ACTIVE");
 

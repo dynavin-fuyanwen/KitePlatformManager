@@ -53,7 +53,8 @@ public class KiteClient
 
     public async Task<IReadOnlyList<JsonElement>> ListCommercialGroupsAsync(CancellationToken cancellationToken = default)
     {
-        using var response = await _httpClient.GetAsync("subscription-groups", cancellationToken);
+        var url = "/services/REST/GlobalM2M/CommercialGroup/v5/r12/commercialGroup";
+        using var response = await _httpClient.GetAsync(url, cancellationToken);
         response.EnsureSuccessStatusCode();
         var doc = await response.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cancellationToken);
         if (doc != null && doc.RootElement.TryGetProperty("groups", out var groups))
