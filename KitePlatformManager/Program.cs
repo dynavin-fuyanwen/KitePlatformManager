@@ -1,6 +1,9 @@
 using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
+using System.Linq;
 using KitePlatformManager.Configuration;
 using KitePlatformManager.Services;
+using KitePlatformManager.Models;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,4 +48,71 @@ app.MapGet("/demo/run", async (KiteClient kite) =>
     return Results.Ok("Done");
 });
 
+app.MapGet("/sim/detail/{icc}", async (string icc, KiteClient kite) =>
+{
+    var detail = await kite.GetSimDetailAsync(icc);
+    if (detail.HasValue)
+    {
+        var model = new GenericModel(detail.Value.EnumerateObject().ToDictionary(p => p.Name, p => p.Value));
+        foreach (var kv in model.Fields)
+        {
+            WriteJsonElement(kv.Value, kv.Key);
+        }
+    }
+    return Results.Ok();
+});
+
+app.MapGet("/sim/list/{pageIndex:int}/{pageSize:int}", async (int pageIndex, int pageSize, KiteClient kite) =>
+{
+    await foreach (var sim in kite.ListSimsAsync(pageIndex, pageSize))
+    {
+        var model = new GenericModel(sim.EnumerateObject().ToDictionary(p => p.Name, p => p.Value));
+        foreach (var kv in model.Fields)
+        {
+            WriteJsonElement(kv.Value, kv.Key);
+        }
+    }
+    return Results.Ok();
+});
+
+app.MapGet("/subscriptiongroup/list", async (KiteClient kite) =>
+{
+    var groups = await kite.ListCommercialGroupsAsync();
+    foreach (var group in groups)
+    {
+        var model = new GenericModel(group.EnumerateObject().ToDictionary(p => p.Name, p => p.Value));
+        foreach (var kv in model.Fields)
+        {
+            WriteJsonElement(kv.Value, kv.Key);
+        }
+    }
+    return Results.Ok();
+});
+
 app.Run();
+
+static void WriteJsonElement(JsonElement element, string prefix = "")
+{
+    switch (element.ValueKind)
+    {
+        case JsonValueKind.Object:
+            foreach (var p in element.EnumerateObject())
+            {
+                var next = string.IsNullOrEmpty(prefix) ? p.Name : $"{prefix}.{p.Name}";
+                WriteJsonElement(p.Value, next);
+            }
+            break;
+        case JsonValueKind.Array:
+            int i = 0;
+            foreach (var item in element.EnumerateArray())
+            {
+                var next = string.IsNullOrEmpty(prefix) ? $"[{i}]" : $"{prefix}[{i}]";
+                WriteJsonElement(item, next);
+                i++;
+            }
+            break;
+        default:
+            Console.WriteLine($"{prefix}: {element.ToString()}");
+            break;
+    }
+}
