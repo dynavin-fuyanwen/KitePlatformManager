@@ -1,0 +1,1 @@
+1. 通过公网 HTTPS 访问 kiteplatform-api.telefonica.com:8010（REST 各资源的路径如 /services/REST/GlobalM2M/...），仅支持 TLS 1.2。
